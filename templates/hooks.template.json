@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 15
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterAgentThought": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterMCPExecution": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "beforeTabFileRead": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "afterTabFileEdit": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ],
+    "stop": [
+      {
+        "command": "REPLACE_WITH_HOOK_CMD",
+        "timeout": 10
+      }
+    ]
+  }
+}

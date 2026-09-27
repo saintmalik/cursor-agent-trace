@@ -1,0 +1,23 @@
+{
+  "exporter": "cursor-agent-trace@0.2.0",
+  "level_claim": "software-observed TRACE — software-only / platform-asserted / attestation none",
+  "runtime_platform": "software-only",
+  "attestation": "none",
+  "model_binding": "asserted-from-cursor-hook-payload",
+  "model_notes": [
+    "Hook 'model' was generic ('default'); using asserted model_id='composer-2'."
+  ],
+  "asserted_slugs": [
+    "default"
+  ],
+  "asserted_model_ids": [
+    "composer-2"
+  ],
+  "from_operator_override": false,
+  "tee": false,
+  "witness": false,
+  "weights_attested": false,
+  "source_trail": "examples/demo-sample.jsonl",
+  "subject": "spiffe://local.cursor/agent/hooks/conversation/demo-sample",
+  "model_id_in_record": "composer-2"
+}

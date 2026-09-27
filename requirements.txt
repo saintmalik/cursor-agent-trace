@@ -1,0 +1,2 @@
+agentrust-trace>=0.9
+agentrust-trace-tests>=0.5

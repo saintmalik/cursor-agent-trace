@@ -1,0 +1,53 @@
+{
+  "eat_profile": "tag:agentrust-io.com,2026:trace-v0.2",
+  "iat": 1790517175,
+  "subject": "spiffe://local.cursor/agent/hooks/conversation/demo-sample",
+  "model": {
+    "provider": "cursor-asserted",
+    "model_id": "composer-2"
+  },
+  "runtime": {
+    "platform": "software-only",
+    "measurement": "sha256:92c5a178cc0b805ef10e1e2935e2543ae919c722f4a9504ce7e3ce3c12a38d6c"
+  },
+  "policy": {
+    "bundle_hash": "sha256:b85850d294592dc5252bcc3d230a94a8df6b022686925c36e125967c3083778d",
+    "enforcement_mode": "enforce"
+  },
+  "data_class": "internal",
+  "origin": {
+    "kind": "third-party-control-plane",
+    "producer": "cursor-agent-trace@0.2.0",
+    "ingested_at": 1790517175,
+    "source_event_id": "g1"
+  },
+  "build_provenance": {
+    "slsa_level": 0,
+    "digest": "sha256:7c06b106281af26454ceea817e9ae067a38a5c322eae82e3cb42a05c5fd629e2",
+    "builder": "cursor-agent-trace@0.2.0"
+  },
+  "appraisal": {
+    "status": "none",
+    "verifier": "https://cursor.com/docs/hooks"
+  },
+  "tool_transcript": {
+    "hash": "sha256:a609bf7717dca68b30a779c4994495387d4cf6ee34a6f3f988c7f2ccab5184e9",
+    "call_count": 1
+  },
+  "references": [
+    {
+      "rel": "cursor-activity-jsonl",
+      "id": "file://path/to/.cursor/agent-trace/demo-sample.jsonl",
+      "resolver": "cursor-agent-trace@0.2.0",
+      "digest": "sha256:a352e456a76e99b7d3ece90f02d8d1f7a638297c078f1cb0521500ea14cc596d"
+    }
+  ],
+  "cnf": {
+    "jwk": {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "dr2Eq6meZHjsVfJPE13xX8Ez6qvKz7L1tzPHYkE7SJU"
+    }
+  },
+  "signature": "6ueuATlaPVFownMSsRJH21r84wBUBUJvijR4Iubm_Z9l5ytMe1tR0szqq4q6U7r5iXS4HgZVGHFEWCiLo2XtCw"
+}

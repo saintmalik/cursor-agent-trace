@@ -1,0 +1,47 @@
+# Local / runtime artifacts
+.cursor/agent-trace/
+.cursor/agent-trace.policy.json
+.tmp-e2e/
+.tmp-demo/
+.tmp-demo-samples/
+.tmp-smoke/
+collector/data/
+trails/
+*.jsonl.bak
+
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Trace Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <div class="shell">
+      <aside class="library-rail" id="libraryRail" hidden>
+        <div class="library-head">
+          <div class="library-title">Trails</div>
+          <button type="button" class="btn btn-ghost btn-tiny" id="libraryRefresh">
+            Refresh
+          </button>
+        </div>
+        <input
+          id="libraryFilter"
+          class="filter-input library-filter"
+          type="search"
+          placeholder="Filter id, user, workspace…"
+        />
+        <div class="library-meta" id="libraryMeta"></div>
+        <div class="library-list" id="libraryList" role="list"></div>
+        <div class="library-s3" id="libraryS3"></div>
+      </aside>
+
+      <div class="app">
+        <header class="topbar">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <div>
+              <div class="brand-name">Agent Trace</div>
+              <div class="brand-sub" id="sourceLabel">Load a JSONL trail</div>
+            </div>
+          </div>
+          <div class="load-actions">
+            <label class="btn btn-ghost file-btn">
+              JSONL
+              <input id="jsonlInput" type="file" accept=".jsonl,application/jsonl,text/plain" hidden />
+            </label>
+            <label class="btn btn-ghost file-btn">
+              Trace
+              <input id="traceInput" type="file" accept=".json,application/json" hidden />
+            </label>
+            <label class="btn btn-ghost file-btn">
+              Honesty
+              <input id="honestyInput" type="file" accept=".json,application/json" hidden />
+            </label>
+          </div>
+        </header>
+
+        <section class="header-cards" id="headerCards" hidden>
+          <article class="stat">
+            <div class="stat-label">Subject</div>
+            <div class="stat-value mono" id="statSubject">—</div>
+          </article>
+          <article class="stat">
+            <div class="stat-label">Model</div>
+            <div class="stat-value" id="statModel">—</div>
+          </article>
+          <article class="stat">
+            <div class="stat-label">Calls</div>
+            <div class="stat-value" id="statCalls">—</div>
+          </article>
+          <article class="stat">
+            <div class="stat-label">Enforce</div>
+            <div class="stat-value" id="statMode">—</div>
+          </article>
+          <article class="stat">
+            <div class="stat-label">Verify</div>
+            <div class="stat-value" id="statVerify">—</div>
+          </article>
+          <article class="stat">
+            <div class="stat-label">Events</div>
+            <div class="stat-value" id="statEvents">—</div>
+          </article>
+        </section>
+
+        <section class="verify-panel" id="verifyPanel" hidden>
+          <div class="panel-head verify-head">
+            <h2>Signed record check</h2>
+            <div class="verify-actions">
+              <span class="verify-summary" id="verifySummary"></span>
+              <button type="button" class="btn btn-ghost" id="verifyRefresh" hidden>
+                Re-check
+              </button>
+            </div>
+          </div>
+          <p class="verify-intro" id="verifyIntro" hidden></p>
+          <div class="verify-body" id="verifyBody"></div>
+        </section>
+
+        <div
+          id="dropZone"
+          class="drop-zone"
+          tabindex="0"
+          aria-label="Drop a JSONL trail here"
+        >
+          <strong>Drop a conversation.jsonl</strong>
+          <span>or choose a trail from the library / files above</span>
+        </div>
+
+        <main class="console" id="console" hidden>
+          <section class="panel timeline-panel">
+            <div class="panel-head">
+              <h2>Timeline</h2>
+              <div class="filters">
+                <input
+                  id="filterText"
+                  class="filter-input"
+                  type="search"
+                  placeholder="Filter tool, path, command…"
+                />
+                <select id="filterHook" class="filter-select">
+                  <option value="">All hooks</option>
+                  <option value="__policy_denials__">Policy denials only</option>
+                </select>
+              </div>
+            </div>
+            <div class="timeline" id="timeline" role="list"></div>
+          </section>
+
+          <aside class="side">
+            <section class="panel">
+              <div class="panel-head"><h2>Models asserted</h2></div>
+              <div id="modelHist" class="hist"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Tools</h2></div>
+              <div id="toolHist" class="hist"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>Files</h2></div>
+              <div id="fileList" class="file-list"></div>
+            </section>
+          </aside>
+        </main>
+      </div>
+    </div>
+
+    <aside class="drawer" id="drawer" hidden aria-live="polite">
+      <div class="drawer-head">
+        <div>
+          <div class="drawer-kicker" id="drawerHook">Event</div>
+          <div class="drawer-title mono" id="drawerTitle">—</div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="drawerClose">Close</button>
+      </div>
+      <div class="drawer-body">
+        <section>
+          <h3>Summary</h3>
+          <pre class="code" id="drawerSummary"></pre>
+        </section>
+        <section>
+          <h3>Policy decision</h3>
+          <pre class="code" id="drawerPolicy"></pre>
+        </section>
+        <section>
+          <h3>Redaction stubs</h3>
+          <pre class="code" id="drawerRedaction"></pre>
+        </section>
+        <section>
+          <h3>Raw event</h3>
+          <pre class="code" id="drawerRaw"></pre>
+        </section>
+      </div>
+    </aside>
+    <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

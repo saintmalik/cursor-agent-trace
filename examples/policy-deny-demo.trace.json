@@ -1,0 +1,33 @@
+{
+  "eat_profile": "tag:agentrust-io.com,2026:trace-v0.2",
+  "iat": 1790517600,
+  "subject": "spiffe://local.cursor/agent/hooks/conversation/policy-deny-demo",
+  "model": {
+    "provider": "cursor-asserted",
+    "model_id": "composer-2"
+  },
+  "runtime": {
+    "platform": "software-only",
+    "measurement": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "policy": {
+    "bundle_hash": "sha256:b85850d294592dc5252bcc3d230a94a8df6b022686925c36e125967c3083778d",
+    "enforcement_mode": "enforce"
+  },
+  "data_class": "internal",
+  "origin": {
+    "kind": "third-party-control-plane",
+    "producer": "cursor-agent-trace@0.2.0",
+    "ingested_at": 1790517600,
+    "source_event_id": "demo-gen"
+  },
+  "appraisal": {
+    "status": "none",
+    "verifier": "https://cursor.com/docs/hooks"
+  },
+  "tool_transcript": {
+    "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "call_count": 4
+  },
+  "note": "Demo fixture intentionally unsigned so the viewer can show Verify FAIL beside timeline DENY badges."
+}

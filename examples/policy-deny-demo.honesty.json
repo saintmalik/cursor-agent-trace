@@ -1,0 +1,13 @@
+{
+  "schema": "cursor-agent-trace-honesty/0.1",
+  "subject": "spiffe://local.cursor/agent/hooks/conversation/policy-deny-demo",
+  "model_id_in_record": "composer-2",
+  "model_claim": "cursor-asserted",
+  "platform": "software-only",
+  "appraisal": "none",
+  "notes": [
+    "Demo trail: timeline DENY / WOULD DENY badges are policy decisions (tool blocked).",
+    "Sibling .trace.json is intentionally unsigned so Signed-record check shows FAIL — different from policy deny."
+  ],
+  "source_trail": "examples/policy-deny-demo.jsonl"
+}

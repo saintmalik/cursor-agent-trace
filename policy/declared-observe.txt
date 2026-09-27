@@ -1,0 +1,20 @@
+# Declared observational policy for Cursor Agent TRACE (software-observed).
+#
+# Legacy bundle kept for workload digest continuity and for operators who point
+# CURSOR_AGENT_TRACE_POLICY at a .txt file. Runtime allow/deny lives in
+# templates/agent-trace.policy.json (copied by install-hooks to
+# ~/.cursor/agent-trace.policy.json or <project>/.cursor/agent-trace.policy.json).
+#
+# When the JSON policy is active, TRACE hashes that JSON and sets
+# policy.enforcement_mode to "enforce" or "advisory". This .txt file is only
+# used when no JSON policy is resolvable — then enforcement_mode is "declared".
+#
+# Do not change this file lightly — its bytes still feed workload_digest.
+#
+# Rules (human-readable; JSON policy is what the hook evaluates):
+# 1. Capture only via documented Cursor hook stdin JSON.
+# 2. Never invent model weights digests or TEE measurements.
+# 3. If Cursor asserts model "default", record model_id "default" honestly.
+# 4. Tool transcript digests exclude payloads (names/ids/outcomes only).
+# 5. Claim software-observed TRACE only (software-only, appraisal none).
+# 6. Default JSON policy mode is enforce with a narrow deny list.

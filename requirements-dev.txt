@@ -1,0 +1,4 @@
+# Dev / CI test dependencies (install on top of requirements.txt).
+pytest>=8.0
+# Optional: moto for S3 collector tests when AWS mocks are desired.
+# moto[s3]>=5.0

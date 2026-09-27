@@ -1,0 +1,17 @@
+{
+  "mode": "enforce",
+  "deny_file_read": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/credentials.json",
+    "**/*secret*"
+  ],
+  "deny_shell_patterns": [
+    "rm -rf /",
+    "rm -rf /*",
+    "mkfs",
+    "dd if="
+  ],
+  "deny_tools": []
+}
