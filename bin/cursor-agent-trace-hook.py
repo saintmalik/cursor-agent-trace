@@ -103,8 +103,6 @@ _BAKED_DEFAULTS: dict[str, str] = {
     "CURSOR_AGENT_TRACE_REDACT": "safe",
     "CURSOR_AGENT_TRACE_SIGN": "1",
     "CURSOR_AGENT_TRACE_S3": "0",
-    # Tab events roll into tab.jsonl (not one UUID file per Tab read).
-    "CURSOR_AGENT_TRACE_TAB_MODE": "consolidated",
     # Collector batch / retry (only used when COLLECTOR_URL is set).
     "COLLECTOR_BATCH_SIZE": str(_outbox.DEFAULT_BATCH_SIZE),
     "COLLECTOR_FLUSH_INTERVAL_SEC": str(int(_outbox.DEFAULT_FLUSH_INTERVAL_SEC)),
@@ -286,7 +284,7 @@ def trail_dir() -> Path:
 def conversation_key(payload: dict[str, Any]) -> str:
     """Grouping key for trail filename / collector.
 
-    Tab-scoped events in consolidated mode share ``tab`` (or ``tab-YYYYMMDD``);
+    Tab-scoped events share ``tab`` (or ``tab-YYYYMMDD``);
     Agent / Task / subagent keep the Cursor conversation UUID.
     """
     return _tab_trail.conversation_key_for_trail(payload)

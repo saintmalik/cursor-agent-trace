@@ -54,15 +54,6 @@ def test_agent_events_not_tab_scoped():
     )
 
 
-def test_tab_mode_defaults_consolidated(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("CURSOR_AGENT_TRACE_TAB_MODE", raising=False)
-    assert tab_trail.tab_mode() == "consolidated"
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "per-event")
-    assert tab_trail.tab_mode() == "per-event"
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "CONSOLIDATED")
-    assert tab_trail.tab_mode() == "consolidated"
-
-
 def test_tab_trail_stem_stable_and_daily(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("CURSOR_AGENT_TRACE_TAB_ROTATE", raising=False)
     assert tab_trail.tab_trail_stem() == "tab"
@@ -78,8 +69,7 @@ def test_is_tab_trail_stem():
     assert not tab_trail.is_tab_trail_stem("02104edc-3956-4914-afd6-6df5040331d0")
 
 
-def test_conversation_key_consolidated_tab(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "consolidated")
+def test_conversation_key_tab_uses_stem():
     payload = {
         "hook_event_name": "beforeTabFileRead",
         "model": "tab",
@@ -88,21 +78,7 @@ def test_conversation_key_consolidated_tab(monkeypatch: pytest.MonkeyPatch):
     assert tab_trail.conversation_key_for_trail(payload) == "tab"
 
 
-def test_conversation_key_per_event_keeps_uuid(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "per-event")
-    payload = {
-        "hook_event_name": "beforeTabFileRead",
-        "model": "tab",
-        "conversation_id": "feeeceae-1f5a-4a22-8064-d7d56a0c6bc8",
-    }
-    assert (
-        tab_trail.conversation_key_for_trail(payload)
-        == "feeeceae-1f5a-4a22-8064-d7d56a0c6bc8"
-    )
-
-
-def test_conversation_key_agent_unchanged(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "consolidated")
+def test_conversation_key_agent_unchanged():
     payload = {
         "hook_event_name": "preToolUse",
         "model": "default",
@@ -115,7 +91,6 @@ def test_hook_trail_path_routes_tab_to_tab_jsonl(
     hook_mod, trail_dir: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("CURSOR_AGENT_TRACE_DIR", str(trail_dir))
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "consolidated")
     path = hook_mod.trail_path_for(
         {
             "hook_event_name": "beforeTabFileRead",
@@ -135,26 +110,10 @@ def test_hook_trail_path_routes_tab_to_tab_jsonl(
     assert agent == trail_dir / "agent-bbb.jsonl"
 
 
-def test_hook_trail_path_per_event_mode(
-    hook_mod, trail_dir: Path, monkeypatch: pytest.MonkeyPatch
-):
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_DIR", str(trail_dir))
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "per-event")
-    path = hook_mod.trail_path_for(
-        {
-            "hook_event_name": "afterTabFileEdit",
-            "model": "tab",
-            "conversation_id": "uuid-ccc",
-        }
-    )
-    assert path == trail_dir / "uuid-ccc.jsonl"
-
-
 def test_hook_append_two_tab_reads_same_file(
     hook_mod, trail_dir: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("CURSOR_AGENT_TRACE_DIR", str(trail_dir))
-    monkeypatch.setenv("CURSOR_AGENT_TRACE_TAB_MODE", "consolidated")
     monkeypatch.setenv("CURSOR_AGENT_TRACE_SIGN", "0")
 
     for cid in ("uuid-1", "uuid-2"):
