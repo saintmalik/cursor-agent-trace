@@ -173,6 +173,47 @@ body {
   border-color: rgba(31, 107, 69, 0.35);
 }
 
+.trail-badge.tab {
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.35);
+}
+
+.trail-badge.subagent {
+  color: #a16207;
+  border-color: rgba(161, 98, 7, 0.35);
+}
+
+.trail-badge.parent {
+  color: #1d4ed8;
+  border-color: rgba(29, 78, 216, 0.35);
+}
+
+.trail-badge.agent {
+  color: var(--ink-soft);
+}
+
+.trail-parent-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.trail-parent-link:hover {
+  color: var(--ink);
+}
+
+.trail-parent-row {
+  margin-top: 2px;
+}
+
 .trail-badge.s3 {
   color: var(--accent);
   border-color: rgba(31, 111, 139, 0.35);

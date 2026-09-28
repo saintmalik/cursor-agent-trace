@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT))
 from lib import assemble as _assemble  # noqa: E402
 from lib import outbox as _outbox  # noqa: E402
 from lib import policy as _policy  # noqa: E402
+from lib import tab_trail as _tab_trail  # noqa: E402
 
 VERSION = _assemble.VERSION
 
@@ -102,6 +103,8 @@ _BAKED_DEFAULTS: dict[str, str] = {
     "CURSOR_AGENT_TRACE_REDACT": "safe",
     "CURSOR_AGENT_TRACE_SIGN": "1",
     "CURSOR_AGENT_TRACE_S3": "0",
+    # Tab events roll into tab.jsonl (not one UUID file per Tab read).
+    "CURSOR_AGENT_TRACE_TAB_MODE": "consolidated",
     # Collector batch / retry (only used when COLLECTOR_URL is set).
     "COLLECTOR_BATCH_SIZE": str(_outbox.DEFAULT_BATCH_SIZE),
     "COLLECTOR_FLUSH_INTERVAL_SEC": str(int(_outbox.DEFAULT_FLUSH_INTERVAL_SEC)),
@@ -281,11 +284,12 @@ def trail_dir() -> Path:
 
 
 def conversation_key(payload: dict[str, Any]) -> str:
-    for key in ("conversation_id", "session_id", "parent_conversation_id"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return "unknown"
+    """Grouping key for trail filename / collector.
+
+    Tab-scoped events in consolidated mode share ``tab`` (or ``tab-YYYYMMDD``);
+    Agent / Task / subagent keep the Cursor conversation UUID.
+    """
+    return _tab_trail.conversation_key_for_trail(payload)
 
 
 def trail_path_for(payload: dict[str, Any]) -> Path:
@@ -552,8 +556,14 @@ def build_record(
 
 
 def maybe_sign_trace(payload: dict[str, Any], trail: Path) -> Path | None:
-    """On stop/sessionEnd, assemble a signed TRACE from the JSONL trail."""
+    """On stop/sessionEnd, assemble a signed TRACE from the JSONL trail.
+
+    Tab trails stay JSONL-only: consolidating many Tab reads into one Level-0
+    subject would invent a fake conversation. Agent UUID trails still sign.
+    """
     if not env_bool("CURSOR_AGENT_TRACE_SIGN", True):
+        return None
+    if _tab_trail.is_tab_scoped(payload) or _tab_trail.is_tab_trail_stem(trail.stem):
         return None
     event = payload.get("hook_event_name")
     if event not in {"sessionEnd", "stop"}:

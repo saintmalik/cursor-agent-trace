@@ -47,6 +47,8 @@ Config loads from `$CURSOR_PROJECT_DIR/.cursor/agent-trace.env` or `~/.cursor/ag
 | --- | --- |
 | `CURSOR_AGENT_TRACE_REDACT` | `safe` (default) or `full` body retention |
 | `CURSOR_AGENT_TRACE_SIGN` | Sign TRACE records (`1` by default) |
+| `CURSOR_AGENT_TRACE_TAB_MODE` | `consolidated` (default: Tab → `tab.jsonl`) or `per-event` |
+| `CURSOR_AGENT_TRACE_TAB_ROTATE` | Optional `daily` → `tab-YYYYMMDD.jsonl` |
 | `COLLECTOR_URL` / `COLLECTOR_TOKEN` | Org ingest (off unless URL is set) |
 | `CURSOR_AGENT_TRACE_S3_*` | Optional direct S3 (prefer collector for teams) |
 | `agent-trace.policy.json` | Allow/deny rules (not an env var) |
@@ -55,7 +57,10 @@ Policy resolution: project `.cursor/agent-trace.policy.json` → `~/.cursor/` �
 
 ## Usage
 
-After install, capture is automatic. Artifacts per conversation: `<id>.jsonl`, `<id>.trace.json`, `<id>.honesty.json`.
+After install, capture is automatic.
+
+- **Agent / Task / subagent:** one trail per Cursor conversation — `<id>.jsonl`, plus `<id>.trace.json` / `<id>.honesty.json` on stop
+- **Tab** (`beforeTabFileRead`, `afterTabFileEdit`, `model: tab`): events append to a stable **`tab.jsonl`** (or `tab-YYYYMMDD.jsonl` if daily rotate is on) so the directory is not flooded with one UUID file per Tab read. Full event bodies are kept; nothing is discarded. Tab stays JSONL-only (no invented Level-0 TRACE for a bag of unrelated reads). Set `CURSOR_AGENT_TRACE_TAB_MODE=per-event` for the legacy UUID-per-read layout.
 
 ```bash
 # Health check
@@ -139,7 +144,7 @@ This produces a **software-observed** TRACE ([AgentRust conformance levels](http
 
 - **Model:** Whatever Cursor puts on `model` / `model_id` in hook payloads, recorded as-is (often `default`)
 - **Platform:** `software-only`, appraisal `none`, `third-party-control-plane`
-- **Capture:** Agent and Tab events Cursor exposes via hooks; bodies redacted by default (`safe`)
+- **Capture:** Agent and Tab events Cursor exposes via hooks; Tab rolls into `tab.jsonl` by default; bodies redacted by default (`safe`)
 - **Deny:** Narrow when `mode: enforce`; hook crashes fail-open
 
 ```bash

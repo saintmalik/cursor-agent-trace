@@ -45,6 +45,7 @@
     honestyInput: document.getElementById("honestyInput"),
     statSubject: document.getElementById("statSubject"),
     statModel: document.getElementById("statModel"),
+    statRelation: document.getElementById("statRelation"),
     statCalls: document.getElementById("statCalls"),
     statMode: document.getElementById("statMode"),
     statVerify: document.getElementById("statVerify"),
@@ -76,6 +77,46 @@
       payloadOf(event).hook_event_name ||
       "unknown"
     );
+  }
+
+  function shortId(id) {
+    const s = String(id || "");
+    if (s.length <= 12) return s;
+    return `${s.slice(0, 8)}…`;
+  }
+
+  function kindBadge(kind) {
+    if (kind === "tab") return '<span class="trail-badge tab">Tab</span>';
+    if (kind === "subagent") return '<span class="trail-badge subagent">Subagent</span>';
+    if (kind === "parent") return '<span class="trail-badge parent">Parent</span>';
+    return '<span class="trail-badge agent">Agent</span>';
+  }
+
+  function parentLinkHtml(parentId) {
+    if (!parentId) return "";
+    return (
+      `<button type="button" class="trail-parent-link" data-parent-id="${escapeAttr(
+        parentId
+      )}" title="${escapeAttr(parentId)}">parent ${escapeHtml(shortId(parentId))}</button>`
+    );
+  }
+
+  function relateHtml(kind, parentId) {
+    const parts = [kindBadge(kind || "agent")];
+    if (parentId) parts.push(parentLinkHtml(parentId));
+    return parts.join(" ");
+  }
+
+  function wireParentLinks(root) {
+    if (!root) return;
+    root.querySelectorAll("[data-parent-id]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const pid = btn.getAttribute("data-parent-id");
+        if (pid) loadTrailById(pid, "auto");
+      });
+    });
   }
 
   function decisionOf(event) {
@@ -243,11 +284,25 @@
       (state.trace && state.trace.model && state.trace.model.model_id) ||
       (state.honesty && state.honesty.model_id_in_record) ||
       "—";
-    if (identity.inherited_from_parent && identity.parent_conversation_id) {
-      model = `${model} ← parent ${String(identity.parent_conversation_id).slice(0, 8)}…`;
-    } else if (identity.provider && identity.provider !== "cursor-asserted" && model !== "—") {
+    if (identity.provider && identity.provider !== "cursor-asserted" && model !== "—") {
       model = `${model} (${identity.provider})`;
     }
+    const parentId =
+      identity.parent_conversation_id ||
+      (state.honesty && state.honesty.parent_conversation_id) ||
+      null;
+    const libraryItem =
+      state.libraryItems.find((t) => t.id === state.activeId) || null;
+    const kind =
+      (libraryItem && libraryItem.kind) ||
+      (state.activeId && /^tab(?:-\d{8})?$/.test(state.activeId)
+        ? "tab"
+        : parentId
+          ? "subagent"
+          : state.events.some((e) => hookName(e) === "subagentStart")
+            ? "parent"
+            : "agent");
+
     const calls =
       (state.trace &&
         state.trace.tool_transcript &&
@@ -266,6 +321,10 @@
     el.statSubject.textContent = subject;
     el.statModel.textContent = model;
     el.statModel.title = (identity.notes || []).join("\n") || "";
+    if (el.statRelation) {
+      el.statRelation.innerHTML = relateHtml(kind, parentId || (libraryItem && libraryItem.parent_id));
+      wireParentLinks(el.statRelation);
+    }
     el.statCalls.textContent = String(calls);
     el.statMode.textContent = mode;
     el.statEvents.textContent = String(state.events.length);
@@ -940,6 +999,8 @@
       if (!q) return true;
       const hay = [
         item.id,
+        item.kind,
+        item.parent_id,
         item.user,
         item.workspace,
         item.subject,
@@ -962,7 +1023,7 @@
       btn.type = "button";
       btn.className = "trail-item" + (item.id === state.activeId ? " active" : "");
       btn.setAttribute("role", "listitem");
-      const badges = [];
+      const badges = [kindBadge(item.kind || "agent")];
       if (item.has_trace) badges.push('<span class="trail-badge trace">TRACE</span>');
       if (item.source === "s3") badges.push('<span class="trail-badge s3">S3</span>');
       if (item.verify_status) {
@@ -976,9 +1037,13 @@
       const events =
         item.event_count != null ? `${item.event_count} events` : item.bytes != null ? `${item.bytes} B` : "";
       const user = item.user ? ` · ${item.user}` : "";
+      const parentRow = item.parent_id
+        ? `<div class="trail-row trail-parent-row">${parentLinkHtml(item.parent_id)}</div>`
+        : "";
       btn.innerHTML = `
         <div class="trail-id">${escapeHtml(item.id)}</div>
         <div class="trail-row">${badges.join("")}</div>
+        ${parentRow}
         <div class="trail-row">${escapeHtml(when)}${events ? " · " + escapeHtml(String(events)) : ""}${escapeHtml(
         user
       )}</div>
@@ -986,6 +1051,7 @@
       btn.addEventListener("click", () => {
         loadTrailById(item.id, item.source || "auto");
       });
+      wireParentLinks(btn);
       el.libraryList.appendChild(btn);
     });
   }

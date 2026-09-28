@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import tab_trail as _tab_trail
+
 SAFE_STEM = re.compile(r"[^A-Za-z0-9._\-]+")
 
 
@@ -133,6 +135,8 @@ class TrailEntry:
     workspace: str | None = None
     subject: str | None = None
     model_id: str | None = None
+    kind: str | None = None  # tab | subagent | parent | agent
+    parent_id: str | None = None  # parent conversation when this trail is a subagent
     verify_status: str | None = None  # lazy: None until computed
     s3_bucket: str | None = None
     s3_key: str | None = None
@@ -173,13 +177,46 @@ def _cheap_event_count(path: Path, *, max_bytes: int = 2_000_000) -> int | None:
     return sum(1 for line in text.splitlines() if line.strip())
 
 
+def _as_str(value: Any) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _walk_parent_ids(obj: Any, out: list[str], *, depth: int = 0) -> None:
+    """Collect parent_conversation_id-like strings without a full model_identity import cycle."""
+    if depth > 6 or obj is None:
+        return
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            lk = str(key).lower().replace("-", "_")
+            if lk in {
+                "parent_conversation_id",
+                "parentconversationid",
+                "parent_composer_id",
+                "parentcomposerid",
+            }:
+                text = _as_str(value)
+                if text:
+                    out.append(text)
+            else:
+                _walk_parent_ids(value, out, depth=depth + 1)
+    elif isinstance(obj, list):
+        for item in obj[:32]:
+            _walk_parent_ids(item, out, depth=depth + 1)
+
+
 def _peek_meta(jsonl: Path, honesty: Path | None) -> dict[str, Any]:
-    """Best-effort user / workspace / subject from honesty or first JSONL lines."""
+    """Best-effort user / workspace / subject / parent linkage from honesty or JSONL."""
     meta: dict[str, Any] = {
         "user": None,
         "workspace": None,
         "subject": None,
         "model_id": None,
+        "parent_id": None,
+        "is_subagent": False,
+        "spawns_subagents": False,
+        "self_id": jsonl.stem,
     }
     if honesty is not None and honesty.is_file():
         try:
@@ -191,10 +228,16 @@ def _peek_meta(jsonl: Path, honesty: Path | None) -> dict[str, Any]:
             mid = data.get("model_id_in_record")
             if isinstance(mid, str) and mid.strip():
                 meta["model_id"] = mid.strip()
+            parent = _as_str(data.get("parent_conversation_id"))
+            if parent and parent != meta["self_id"]:
+                meta["parent_id"] = parent
+                if data.get("inherited_from_parent") is True:
+                    meta["is_subagent"] = True
 
+    self_ids: set[str] = {meta["self_id"]}
     try:
         with jsonl.open("r", encoding="utf-8") as fh:
-            for _ in range(8):
+            for _ in range(48):
                 line = fh.readline()
                 if not line:
                     break
@@ -207,6 +250,13 @@ def _peek_meta(jsonl: Path, honesty: Path | None) -> dict[str, Any]:
                     continue
                 if not isinstance(row, dict):
                     continue
+                for key in ("conversation_id", "session_id"):
+                    cid = _as_str(row.get(key))
+                    if cid:
+                        self_ids.add(cid)
+                event_name = str(row.get("hook_event_name") or "")
+                if event_name == "subagentStart":
+                    meta["spawns_subagents"] = True
                 if meta["workspace"] is None:
                     roots = row.get("workspace_roots")
                     if isinstance(roots, list) and roots:
@@ -225,11 +275,45 @@ def _peek_meta(jsonl: Path, honesty: Path | None) -> dict[str, Any]:
                     mid = row.get("model_id") or row.get("model")
                     if isinstance(mid, str) and mid.strip():
                         meta["model_id"] = mid.strip()
-                if meta["user"] and meta["workspace"] and meta["model_id"]:
+                found: list[str] = []
+                _walk_parent_ids(row, found)
+                for cand in found:
+                    if cand not in self_ids:
+                        meta["parent_id"] = cand
+                        meta["is_subagent"] = True
+                if (
+                    meta["user"]
+                    and meta["workspace"]
+                    and meta["model_id"]
+                    and (meta["parent_id"] or meta["spawns_subagents"])
+                ):
                     break
     except OSError:
         pass
     return meta
+
+
+def _classify_kind(stem: str, meta: dict[str, Any]) -> str:
+    if _tab_trail.is_tab_trail_stem(stem):
+        return "tab"
+    if meta.get("is_subagent") and meta.get("parent_id"):
+        return "subagent"
+    if meta.get("spawns_subagents"):
+        return "parent"
+    return "agent"
+
+
+def _apply_parent_backrefs(entries: list[TrailEntry]) -> None:
+    """Promote agent → parent when another trail lists it as parent_id."""
+    children_of: set[str] = set()
+    for entry in entries:
+        if entry.parent_id:
+            children_of.add(entry.parent_id)
+    for entry in entries:
+        if entry.kind in {"tab", "subagent"}:
+            continue
+        if entry.id in children_of:
+            entry.kind = "parent"
 
 
 def _display_user(value: Any) -> str | None:
@@ -254,6 +338,9 @@ def scan_local_dir(directory: Path) -> list[TrailEntry]:
         # Skip nested outbox/pending dumps if any land as jsonl.
         if path.parent.name in {"outbox", "pending"}:
             continue
+        # Skip hook side-channel logs (foo.collector.jsonl / foo.s3.jsonl).
+        if path.name.endswith(".collector.jsonl") or path.name.endswith(".s3.jsonl"):
+            continue
         stem = path.stem
         trace = directory / f"{stem}.trace.json"
         honesty = directory / f"{stem}.honesty.json"
@@ -265,6 +352,9 @@ def scan_local_dir(directory: Path) -> list[TrailEntry]:
             mtime = None
             size = None
         meta = _peek_meta(path, honesty if honesty.is_file() else None)
+        kind = _classify_kind(stem, meta)
+        if kind == "tab" and not meta.get("model_id"):
+            meta["model_id"] = "tab"
         entries.append(
             TrailEntry(
                 id=stem,
@@ -280,9 +370,12 @@ def scan_local_dir(directory: Path) -> list[TrailEntry]:
                 workspace=meta["workspace"],
                 subject=meta["subject"],
                 model_id=meta["model_id"],
+                kind=kind,
+                parent_id=meta.get("parent_id") if kind != "tab" else None,
                 dir=str(directory),
             )
         )
+    _apply_parent_backrefs(entries)
     return entries
 
 
@@ -424,6 +517,7 @@ def scan_s3_trails(*, max_keys: int = 2000) -> dict[str, Any]:
                         "s3_key": None,
                         "mtime": None,
                         "bytes": None,
+                        "kind": "tab" if _tab_trail.is_tab_trail_stem(stem) else "agent",
                     },
                 )
                 last_mod = obj.get("LastModified")
@@ -474,6 +568,8 @@ def scan_s3_trails(*, max_keys: int = 2000) -> dict[str, Any]:
                 mtime_iso=_iso_from_mtime(mtime),
                 event_count=None,
                 bytes=raw.get("bytes"),
+                model_id="tab" if raw.get("kind") == "tab" else None,
+                kind=raw.get("kind") if isinstance(raw.get("kind"), str) else None,
                 s3_bucket=cfg.bucket,
                 s3_key=raw.get("s3_key") or f"{prefix}{stem}.jsonl",
             ).to_dict()
