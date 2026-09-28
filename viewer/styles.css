@@ -115,6 +115,21 @@ body {
   padding-right: 2px;
 }
 
+.trail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trail-children {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 14px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(29, 78, 216, 0.22);
+}
+
 .trail-item {
   appearance: none;
   border: 1px solid var(--line);
@@ -127,6 +142,53 @@ body {
   gap: 3px;
   font: 400 0.74rem var(--font);
   color: var(--ink);
+}
+
+.trail-item-parent {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 4px 6px;
+  align-items: start;
+}
+
+.trail-item-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.trail-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 4px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1;
+  user-select: none;
+  transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.trail-chevron:hover {
+  background: rgba(29, 78, 216, 0.12);
+  color: var(--accent);
+}
+
+.trail-chevron.open {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+
+.trail-child-count {
+  color: var(--ink-soft);
+  font-size: 0.66rem;
+}
+
+.trail-item-child {
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .trail-item:hover {

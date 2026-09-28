@@ -1,6 +1,8 @@
 (() => {
   "use strict";
 
+  const EXPAND_STORAGE_KEY = "cursor-agent-trace.library.expanded";
+
   const state = {
     events: [],
     trace: null,
@@ -18,7 +20,38 @@
     library: null,
     libraryFilter: "",
     libraryItems: [],
+    libraryExpanded: loadExpandedIds(),
   };
+
+  function loadExpandedIds() {
+    try {
+      const raw = sessionStorage.getItem(EXPAND_STORAGE_KEY);
+      if (!raw) return new Set();
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set();
+      return new Set(parsed.filter((id) => typeof id === "string" && id));
+    } catch (_err) {
+      return new Set();
+    }
+  }
+
+  function persistExpandedIds() {
+    try {
+      sessionStorage.setItem(
+        EXPAND_STORAGE_KEY,
+        JSON.stringify(Array.from(state.libraryExpanded))
+      );
+    } catch (_err) {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function setParentExpanded(parentId, expanded) {
+    if (!parentId) return;
+    if (expanded) state.libraryExpanded.add(parentId);
+    else state.libraryExpanded.delete(parentId);
+    persistExpandedIds();
+  }
 
   const el = {
     sourceLabel: document.getElementById("sourceLabel"),
@@ -992,67 +1025,192 @@
     }
   }
 
-  function renderLibraryList() {
-    if (!el.libraryList || el.libraryRail.hidden) return;
-    const q = state.libraryFilter.trim().toLowerCase();
-    const items = state.libraryItems.filter((item) => {
-      if (!q) return true;
-      const hay = [
-        item.id,
-        item.kind,
-        item.parent_id,
-        item.user,
-        item.workspace,
-        item.subject,
-        item.model_id,
-        item.source,
-        item.mtime_iso,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-    el.libraryList.innerHTML = "";
-    if (!items.length) {
-      el.libraryList.innerHTML = '<div class="library-empty">No matching trails.</div>';
-      return;
-    }
+  function trailMatchesFilter(item, q) {
+    if (!q) return true;
+    const hay = [
+      item.id,
+      item.kind,
+      item.parent_id,
+      item.user,
+      item.workspace,
+      item.subject,
+      item.model_id,
+      item.source,
+      item.mtime_iso,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  }
+
+  function buildLibraryTree(items) {
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const childrenByParent = new Map();
     items.forEach((item) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "trail-item" + (item.id === state.activeId ? " active" : "");
-      btn.setAttribute("role", "listitem");
-      const badges = [kindBadge(item.kind || "agent")];
-      if (item.has_trace) badges.push('<span class="trail-badge trace">TRACE</span>');
-      if (item.source === "s3") badges.push('<span class="trail-badge s3">S3</span>');
-      if (item.verify_status) {
-        badges.push(
-          `<span class="trail-badge verify-${escapeAttr(item.verify_status)}">${escapeHtml(
-            item.verify_status
-          )}</span>`
-        );
-      }
-      const when = item.mtime_iso ? item.mtime_iso.replace("T", " ").replace("Z", "") : "—";
-      const events =
-        item.event_count != null ? `${item.event_count} events` : item.bytes != null ? `${item.bytes} B` : "";
-      const user = item.user ? ` · ${item.user}` : "";
-      const parentRow = item.parent_id
+      const pid = item.parent_id;
+      if (!pid || pid === item.id || !byId.has(pid)) return;
+      if (!childrenByParent.has(pid)) childrenByParent.set(pid, []);
+      childrenByParent.get(pid).push(item);
+    });
+    childrenByParent.forEach((kids) => {
+      kids.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    });
+    const nestedIds = new Set();
+    childrenByParent.forEach((kids) => {
+      kids.forEach((kid) => nestedIds.add(kid.id));
+    });
+    const roots = items
+      .filter((item) => !nestedIds.has(item.id))
+      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    return { roots, childrenByParent };
+  }
+
+  function trailItemMetaHtml(item, { nested = false } = {}) {
+    const badges = [kindBadge(item.kind || "agent")];
+    if (item.has_trace) badges.push('<span class="trail-badge trace">TRACE</span>');
+    if (item.source === "s3") badges.push('<span class="trail-badge s3">S3</span>');
+    if (item.verify_status) {
+      badges.push(
+        `<span class="trail-badge verify-${escapeAttr(item.verify_status)}">${escapeHtml(
+          item.verify_status
+        )}</span>`
+      );
+    }
+    const when = item.mtime_iso ? item.mtime_iso.replace("T", " ").replace("Z", "") : "—";
+    const events =
+      item.event_count != null
+        ? `${item.event_count} events`
+        : item.bytes != null
+          ? `${item.bytes} B`
+          : "";
+    const user = item.user ? ` · ${item.user}` : "";
+    // Parent link is redundant when the child is already nested under that parent.
+    const parentRow =
+      !nested && item.parent_id
         ? `<div class="trail-row trail-parent-row">${parentLinkHtml(item.parent_id)}</div>`
         : "";
-      btn.innerHTML = `
-        <div class="trail-id">${escapeHtml(item.id)}</div>
-        <div class="trail-row">${badges.join("")}</div>
-        ${parentRow}
-        <div class="trail-row">${escapeHtml(when)}${events ? " · " + escapeHtml(String(events)) : ""}${escapeHtml(
-        user
-      )}</div>
-      `;
+    return `
+      <div class="trail-id">${escapeHtml(item.id)}</div>
+      <div class="trail-row">${badges.join("")}</div>
+      ${parentRow}
+      <div class="trail-row">${escapeHtml(when)}${
+        events ? " · " + escapeHtml(String(events)) : ""
+      }${escapeHtml(user)}</div>
+    `;
+  }
+
+  function makeTrailButton(item, { nested = false, expandable = false, expanded = false, childCount = 0 } = {}) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "trail-item" +
+      (item.id === state.activeId ? " active" : "") +
+      (nested ? " trail-item-child" : "") +
+      (expandable ? " trail-item-parent" : "");
+    btn.setAttribute("role", "listitem");
+    btn.dataset.trailId = item.id;
+    if (expandable) {
+      btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+      const chevron = document.createElement("span");
+      chevron.className = "trail-chevron" + (expanded ? " open" : "");
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.title = expanded ? "Collapse subagents" : "Expand subagents";
+      chevron.textContent = "▸";
+      chevron.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        setParentExpanded(item.id, !state.libraryExpanded.has(item.id));
+        renderLibraryList();
+      });
+      const body = document.createElement("div");
+      body.className = "trail-item-body";
+      body.innerHTML = trailItemMetaHtml(item, { nested: false });
+      const count = document.createElement("div");
+      count.className = "trail-child-count";
+      count.textContent = `${childCount} subagent${childCount === 1 ? "" : "s"}`;
+      body.appendChild(count);
+      btn.appendChild(chevron);
+      btn.appendChild(body);
+      btn.addEventListener("click", (ev) => {
+        // Clicking the row (not chevron) selects the parent trail.
+        // Double-duty: if user clicks near the count area while collapsed, also expand.
+        if (ev.target && ev.target.closest && ev.target.closest(".trail-child-count") && !expanded) {
+          setParentExpanded(item.id, true);
+          renderLibraryList();
+        }
+        loadTrailById(item.id, item.source || "auto");
+      });
+    } else {
+      btn.innerHTML = trailItemMetaHtml(item, { nested });
       btn.addEventListener("click", () => {
         loadTrailById(item.id, item.source || "auto");
       });
-      wireParentLinks(btn);
-      el.libraryList.appendChild(btn);
+    }
+    wireParentLinks(btn);
+    return btn;
+  }
+
+  function renderLibraryList() {
+    if (!el.libraryList || el.libraryRail.hidden) return;
+    const q = state.libraryFilter.trim().toLowerCase();
+    const { roots, childrenByParent } = buildLibraryTree(state.libraryItems);
+
+    const visibleRoots = [];
+    const forceExpand = new Set();
+
+    roots.forEach((root) => {
+      const kids = childrenByParent.get(root.id) || [];
+      const rootMatch = trailMatchesFilter(root, q);
+      const matchingKids = q ? kids.filter((kid) => trailMatchesFilter(kid, q)) : kids;
+      if (!q) {
+        visibleRoots.push({ root, kids, showKids: kids });
+        return;
+      }
+      if (!rootMatch && !matchingKids.length) return;
+      // Parent matches → show all children; only kids match → show those + auto-expand.
+      if (matchingKids.length) forceExpand.add(root.id);
+      visibleRoots.push({
+        root,
+        kids,
+        showKids: rootMatch ? kids : matchingKids,
+      });
+    });
+
+    el.libraryList.innerHTML = "";
+    if (!visibleRoots.length) {
+      el.libraryList.innerHTML = '<div class="library-empty">No matching trails.</div>';
+      return;
+    }
+
+    visibleRoots.forEach(({ root, kids, showKids }) => {
+      const hasKids = kids.length > 0;
+      const childActive = kids.some((kid) => kid.id === state.activeId);
+      if (hasKids && childActive && !state.libraryExpanded.has(root.id)) {
+        setParentExpanded(root.id, true);
+      }
+      const expanded =
+        hasKids &&
+        (forceExpand.has(root.id) || state.libraryExpanded.has(root.id) || childActive);
+      const group = document.createElement("div");
+      group.className = "trail-group" + (hasKids ? " has-children" : "");
+      group.appendChild(
+        makeTrailButton(root, {
+          expandable: hasKids,
+          expanded,
+          childCount: kids.length,
+        })
+      );
+      if (hasKids && expanded) {
+        const nest = document.createElement("div");
+        nest.className = "trail-children";
+        nest.setAttribute("role", "group");
+        showKids.forEach((kid) => {
+          nest.appendChild(makeTrailButton(kid, { nested: true }));
+        });
+        group.appendChild(nest);
+      }
+      el.libraryList.appendChild(group);
     });
   }
 
